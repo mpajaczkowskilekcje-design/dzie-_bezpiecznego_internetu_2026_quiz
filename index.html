@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz: Leniwy Detektyw</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        .card { transition: all 0.2s ease; }
+        .card:active { transform: scale(0.98); }
+        .hidden { display: none; }
+        #qrcode img { margin: 0 auto; border: 12px solid white; border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen font-sans text-slate-900">
+
+    <div class="max-w-2xl mx-auto py-8 px-4">
+        <!-- Nagłówek lekcyjny -->
+        <div class="text-center mb-8">
+            <div class="inline-block bg-indigo-100 text-indigo-700 text-xs font-bold px-3 py-1 rounded-full mb-3 uppercase tracking-wider">
+                Dzień Bezpiecznego Internetu
+            </div>
+            <h1 class="text-3xl font-extrabold text-slate-800 mb-2">🕵️‍♂️ Leniwy Detektyw</h1>
+            <p class="text-slate-500">Co Marek zostawił w sieci? Sprawdźmy!</p>
+        </div>
+
+        <!-- Ekran Startowy -->
+        <div id="start-screen" class="bg-white rounded-3xl shadow-xl shadow-indigo-100/50 p-8 text-center border border-slate-100">
+            <div class="bg-indigo-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+                <span class="text-4xl">🔍</span>
+            </div>
+            <h2 class="text-2xl font-bold mb-4">Analiza śladów cyfrowych</h2>
+            <p class="mb-8 text-slate-600 leading-relaxed">
+                Na podstawie materiałów NASK spróbujemy wyciągnąć wnioski z aktywności Marka. Czy dasz radę go "namierzyć"?
+            </p>
+            
+            <div class="space-y-4">
+                <button onclick="startQuiz()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 px-8 rounded-2xl text-lg shadow-lg shadow-indigo-200 transition-all">
+                    Rozpocznij test
+                </button>
+                <button onclick="toggleQR()" class="w-full bg-white border-2 border-slate-200 text-slate-600 hover:border-indigo-200 hover:bg-slate-50 font-semibold py-3 px-8 rounded-2xl transition-all">
+                    Pokaż QR (dla nauczyciela)
+                </button>
+            </div>
+
+            <div id="qr-modal" class="hidden mt-8 p-6 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
+                <p class="mb-4 text-sm font-bold text-slate-500 uppercase">Uczniowie, skanujcie tutaj:</p>
+                <div id="qrcode"></div>
+                <p class="mt-4 text-[10px] text-slate-400">Adres: <span id="current-url" class="break-all font-mono"></span></p>
+            </div>
+        </div>
+
+        <!-- Kontener Pytań -->
+        <div id="quiz-container" class="hidden space-y-4">
+            <div class="bg-white rounded-3xl shadow-xl p-6 border border-slate-100">
+                <div id="progress-container" class="mb-6">
+                    <div class="flex justify-between text-[10px] font-bold text-slate-400 mb-2 uppercase tracking-widest">
+                        <span id="progress-text">Analiza: 1 / 7</span>
+                        <span id="percent-text">0%</span>
+                    </div>
+                    <div class="h-1.5 w-full bg-slate-100 rounded-full">
+                        <div id="progress-bar" class="h-1.5 bg-indigo-500 rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <h3 id="question-text" class="text-xl font-bold text-slate-800 mb-8 leading-tight">...</h3>
+                
+                <div id="options" class="space-y-3">
+                    <!-- Opcje ładowane dynamicznie -->
+                </div>
+
+                <!-- Feedback -->
+                <div id="feedback" class="mt-8 p-5 rounded-2xl hidden animate-in fade-in zoom-in duration-300">
+                    <p id="feedback-text" class="text-sm leading-relaxed"></p>
+                    <button onclick="nextQuestion()" class="w-full mt-6 bg-slate-900 text-white py-4 rounded-xl font-bold hover:bg-slate-800 transition-colors">
+                        Następny ślad ➡️
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Ekran Końcowy -->
+        <div id="result-screen" class="hidden bg-white rounded-3xl shadow-xl p-8 text-center border border-slate-100">
+            <div class="text-6xl mb-4" id="final-emoji">🕵️‍♂️</div>
+            <h2 class="text-2xl font-bold mb-2">Raport detektywa</h2>
+            <p id="final-score" class="text-4xl font-black text-indigo-600 mb-6">0 / 7</p>
+            
+            <div class="bg-indigo-50 p-5 rounded-2xl text-left mb-8">
+                <p class="text-indigo-900 text-sm leading-relaxed">
+                    <strong>Lekcja:</strong> Marek nie wiedział, że zostawia tyle informacji. Teraz Ty już wiesz. Zanim coś opublikujesz, zastanów się, czy Twój "Leniwy Detektyw" nie dowie się o Tobie zbyt wiele.
+                </p>
+            </div>
+            
+            <button onclick="location.reload()" class="text-indigo-600 font-bold hover:underline">
+                Spróbuj ponownie
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const questions = [
+            {
+                q: "Marek szukał w Google: 'najlepsze ścieżki rowerowe w okolicach Warszawy'. Czego dowiedział się o nim system?",
+                options: ["Nic, wyszukiwanie jest zawsze prywatne.", "Gdzie Marek przebywa i że planuje wycieczkę rowerową.", "Jaki kolor roweru ma Marek.", "Nic, bo Marek nie był zalogowany."],
+                correct: 1,
+                info: "Logi wyszukiwania budują Twój profil zainteresowań i przybliżoną lokalizację."
+            },
+            {
+                q: "Marek wrzucił zdjęcie roweru w garażu. Nie wyłączył geolokalizacji. Co ryzykuje?",
+                options: ["Nic, zdjęcie będzie miało tylko ładniejszy opis.", "Złodziej może odczytać z metadanych zdjęcia dokładny adres garażu.", "Bateria w telefonie szybciej padnie.", "Zdjęcie szybciej się załaduje."],
+                correct: 1,
+                info: "Dane EXIF w plikach zdjęć często zawierają dokładne współrzędne GPS miejsca wykonania zdjęcia."
+            },
+            {
+                q: "Marek polubił 5 sklepów z elektroniką. Jak zareagują algorytmy reklamowe?",
+                options: ["Wyślą mu kody rabatowe pocztą.", "Będą mu wyświetlać więcej reklam gadżetów i podzespołów IT.", "Zablokują mu inne reklamy.", "Usuną jego polubienia po tygodniu."],
+                correct: 1,
+                info: "Twoje lajki to darmowa informacja dla firm o tym, co chcesz w przyszłości kupić."
+            },
+            {
+                q: "Logowanie do gry przez konto Facebook. Co zyskuje twórca gry?",
+                options: ["Tylko Twój adres e-mail.", "Nic, to tylko ułatwienie dla gracza.", "Dostęp do danych profilowych i informację o tym, jak długo grasz.", "Możliwość pisania postów w Twoim imieniu."],
+                correct: 2,
+                info: "Mechanizm SSO (Single Sign-On) to wymiana Twoich danych osobowych za wygodę logowania."
+            },
+            {
+                q: "Posty Marka pojawiają się najczęściej o 1:00 w nocy. Jaki to wniosek dla detektywa?",
+                options: ["Marek pracuje na nocną zmianę.", "Pozwala to poznać rytm dobowy Marka i czas jego aktywności.", "Marek ma darmowy internet w nocy.", "Marek mieszka w innej strefie czasowej."],
+                correct: 1,
+                info: "Meta-informacja o czasie publikacji mówi bardzo dużo o Twojej rutynie i nawykach."
+            },
+            {
+                q: "Relacja 'na żywo' z trasy rowerowej 40 km od domu. Co to za sygnał?",
+                options: ["Że Marek jest świetnym sportowcem.", "Że dom Marka jest teraz pusty i można go okraść.", "Że Marek ma dobry zasięg LTE.", "Że Marek lubi się chwalić."],
+                correct: 1,
+                info: "Publikowanie relacji w czasie rzeczywistym poza domem to publiczne ogłoszenie, że budynek nie jest strzeżony."
+            },
+            {
+                q: "Marek wrzucił zdjęcie biletu na koncert z widocznym kodem kreskowym. Co się może stać?",
+                options: ["Ktoś może polubić jego gust muzyczny.", "Ktoś może skopiować kod i wejść na koncert przed Markiem.", "Bilet straci ważność od razu.", "Zdjęcie zostanie zablokowane za prawa autorskie."],
+                correct: 1,
+                info: "Kody QR i kreskowe na biletach są unikalne. Ich upublicznienie to jak oddanie biletu obcej osobie."
+            }
+        ];
+
+        let currentQ = 0;
+        let score = 0;
+        let qrShown = false;
+
+        function toggleQR() {
+            const modal = document.getElementById('qr-modal');
+            const urlSpan = document.getElementById('current-url');
+            modal.classList.toggle('hidden');
+            
+            if (!qrShown) {
+                const currentUrl = window.location.href;
+                urlSpan.innerText = currentUrl;
+                new QRCode(document.getElementById("qrcode"), {
+                    text: currentUrl,
+                    width: 180,
+                    height: 180,
+                    colorDark : "#4f46e5",
+                    colorLight : "#f8fafc"
+                });
+                qrShown = true;
+            }
+        }
+
+        function startQuiz() {
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('quiz-container').classList.remove('hidden');
+            showQuestion();
+        }
+
+        function showQuestion() {
+            const q = questions[currentQ];
+            const progress = ((currentQ + 1) / questions.length) * 100;
+            
+            document.getElementById('progress-text').innerText = `Analiza: ${currentQ + 1} / ${questions.length}`;
+            document.getElementById('percent-text').innerText = `${Math.round(progress)}%`;
+            document.getElementById('progress-bar').style.width = `${progress}%`;
+            document.getElementById('question-text').innerText = q.q;
+            
+            const optionsDiv = document.getElementById('options');
+            optionsDiv.innerHTML = '';
+            
+            q.options.forEach((opt, index) => {
+                const btn = document.createElement('button');
+                btn.className = "card w-full bg-white border border-slate-200 p-4 rounded-2xl text-left hover:border-indigo-400 hover:bg-indigo-50/50 transition-all text-sm font-semibold text-slate-700 shadow-sm";
+                btn.innerText = opt;
+                btn.onclick = () => checkAnswer(index);
+                optionsDiv.appendChild(btn);
+            });
+
+            document.getElementById('feedback').classList.add('hidden');
+        }
+
+        function checkAnswer(index) {
+            const q = questions[currentQ];
+            const feedback = document.getElementById('feedback');
+            const feedbackText = document.getElementById('feedback-text');
+            const btns = document.querySelectorAll('#options button');
+            
+            btns.forEach(b => b.disabled = true);
+
+            if(index === q.correct) {
+                score++;
+                feedback.className = "mt-8 p-5 rounded-2xl bg-emerald-50 text-emerald-900 border border-emerald-100 block";
+                feedbackText.innerHTML = `<span class="font-bold">✅ Dobry wniosek!</span><br>${q.info}`;
+                btns[index].classList.add('border-emerald-500', 'bg-emerald-50');
+            } else {
+                feedback.className = "mt-8 p-5 rounded-2xl bg-rose-50 text-rose-900 border border-rose-100 block";
+                feedbackText.innerHTML = `<span class="font-bold">❌ Błędny trop...</span><br>${q.info}`;
+                btns[index].classList.add('border-rose-500', 'bg-rose-50');
+            }
+        }
+
+        function nextQuestion() {
+            currentQ++;
+            if(currentQ < questions.length) {
+                showQuestion();
+            } else {
+                showResults();
+            }
+        }
+
+        function showResults() {
+            document.getElementById('quiz-container').classList.add('hidden');
+            const screen = document.getElementById('result-screen');
+            screen.classList.remove('hidden');
+            document.getElementById('final-score').innerText = `${score} / ${questions.length}`;
+            
+            if(score === questions.length) document.getElementById('final-emoji').innerText = "🏆";
+            else if(score >= 5) document.getElementById('final-emoji').innerText = "🥈";
+        }
+    </script>
+</body>
+</html>
